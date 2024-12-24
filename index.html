@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Eカード</title>
+<style>
+  /***********************
+   * 背景＆全体レイアウト
+   ***********************/
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(45deg, #1a2a6c, #b21f1f, #fdbb2d);
+    background-size: 600% 600%;
+    animation: GradientBackground 15s ease infinite;
+  }
+  @keyframes GradientBackground {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .container {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  /*********************
+   * メインコンテンツ部
+   *********************/
+  .main {
+    flex: 1;
+    margin: 20px;
+    position: relative;
+    padding: 20px;
+    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .main h1 {
+    color: #2a0035;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    margin-top: 0;
+    text-align: center;
+    font-size: 2.2em;
+  }
+
+  /* ゲーム終了時に表示するオーバーレイメッセージ */
+  .result-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    padding: 30px 40px;
+    background-color: rgba(255,255,255,0.9);
+    border: 3px solid #333;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 2em;
+    color: #2a0035;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: all 0.5s ease;
+    pointer-events: none; /* 初期はクリック無効 */
+    z-index: 999;
+  }
+  .result-overlay.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /*********************
+   * サイドバー
+   *********************/
+  .sidebar {
+    width: 300px;
+    padding: 20px;
+    box-sizing: border-box;
+    border-left: 2px solid #333;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 0 15px 15px 0;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .sidebar h2 {
+    font-size: 1.4em;
+    margin: 0;
+    color: #2a0035;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+  }
+
+  /* スコアボード */
+  .scoreboard {
+    background: rgba(255, 255, 255, 0.85);
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #666;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 0.9em;
+  }
+  /* スコア部分: プレイヤー1/2 それぞれの色 */
+  .player1-color {
+    background-color: #fff5d9; /* 淡いオレンジ */
+  }
+  .player2-color {
+    background-color: #d9f2ff; /* 淡い水色 */
+  }
+
+  /* 結果ログ（縦長に） */
+  .log {
+    white-space: pre-wrap;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    height: 350px; /* ログを大きく */
+    overflow-y: scroll;
+    font-size: 0.9em;
+    box-sizing: border-box;
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  /* 履歴 */
+  .history-container {
+    background: rgba(255,255,255, 0.85);
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    box-sizing: border-box;
+    height: 120px;
+    overflow-y: auto;
+  }
+  .history-container .history-item {
+    border-bottom: 1px solid #ccc;
+    padding: 6px 0;
+    font-size: 0.9em;
+    font-weight: bold;
+  }
+
+  /****************************************************
+   * Eカードのメイン要素
+   ****************************************************/
+  #round-info {
+    text-align: center;
+    font-size: 1.1em;
+    margin-bottom: 0px;
+  }
+
+  #game-rules {
+    text-align: center;
+    font-size: 0.9em;
+    margin-top: -10px;
+    color: #333;
+  }
+
+  /* カードを並べる場所 */
+  #table-cards {
+    text-align: center;
+    margin: 10px auto;
+  }
+  .table-card {
+    display: inline-block;
+    margin: 0 20px;
+    padding: 20px;
+    font-size: 16px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    background-color: #fff;
+    min-width: 80px;
+    transition: transform 0.5s;
+    cursor: pointer; /* ざわ・・・クリックで戻る */
+  }
+  .table-card.open {
+    transform: rotateY(720deg) scale(1.2);
+  }
+  .draw-highlight {
+    animation: blinkDraw 0.7s infinite alternate;
+  }
+  @keyframes blinkDraw {
+    0% { box-shadow: 0 0 10px #ff0000; }
+    100% { box-shadow: 0 0 20px #ff9911; }
+  }
+
+  /****************************************************
+   * プレイヤー1/2コンテナ
+   ****************************************************/
+  .players-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .player-area {
+    padding: 10px;
+    border: 2px solid #333;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+    position: relative;
+  }
+  .player-area h2 {
+    margin: 0 0 10px;
+    font-size: 1.1em;
+    color: #2a0035;
+  }
+  .player-area.active-turn {
+    border-color: #ff9900;
+    box-shadow: 0 0 10px rgba(255,153,0,0.7);
+  }
+
+  /* 手札ボタン */
+  .card-buttons {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-button {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 1em;
+    border: 2px solid #333;
+    background-color: #eee;
+    border-radius: 5px;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  .card-button:hover {
+    background-color: #ddd;
+    transform: translateY(-2px);
+  }
+
+  /* もう一度遊ぶボタン */
+  .next-round-button {
+    font-size: 1.3em;
+    font-weight: bold;
+    padding: 12px 30px;
+    cursor: pointer;
+    border: 3px solid #333;
+    border-radius: 10px;
+    background-color: #fff;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+    margin: 8px 0 0 0;
+    display: block;
+    text-align: center;
+  }
+  .next-round-button:hover {
+    background-color: #ffe;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+
+  /******************************************
+   * プレイヤー名入力フォームのスタイル
+   ******************************************/
+  #player-name-form {
+    display: block; /* はじめにフォームが見えるように */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.95);
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 9999;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    text-align: center;
+  }
+  #player-name-form h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+    color: #2a0035;
+  }
+  #player-name-form input {
+    display: block;
+    margin: 10px auto;
+    padding: 8px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  #start-game-btn {
+    font-size: 1em;
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 2px solid #333;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  #start-game-btn:hover {
+    background-color: #eee;
+    transform: translateY(-2px);
+  }
+
+</style>
+</head>
+<body>
+
+<!-- プレイヤー名入力フォーム -->
+<div id="player-name-form">
+  <h2>プレイヤー名を入力してください</h2>
+  <input type="text" id="player1-input" placeholder="プレイヤー1の名前" />
+  <input type="text" id="player2-input" placeholder="プレイヤー2の名前" />
+  <button id="start-game-btn">ゲーム開始</button>
+</div>
+
+<div class="container" style="filter: blur(5px);" id="game-container">
+
+  <!-- メインコンテンツ -->
+  <div class="main">
+    <!-- オーバーレイメッセージ -->
+    <div id="result-overlay" class="result-overlay"></div>
+
+    <h1>Eカード</h1>
+    <div id="round-info">ラウンド: <span id="round-number">1</span></div>
+    <p id="game-rules">
+      皇帝側：皇帝1枚、市民4枚 / 奴隷側：奴隷1枚、市民4枚<br>
+      <strong>奇数ラウンドは奴隷側が先行、偶数ラウンドは皇帝側が先行</strong><br>
+      決着後「もう一度遊ぶ」で役割を交替<br>
+      ざわ・・・クリックでカード選択を取り消し
+    </p>
+
+    <div id="table-cards">
+      <div class="table-card" id="slave-table-card"></div>
+      <div class="table-card" id="emperor-table-card"></div>
+    </div>
+
+    <!-- プレイヤー1エリア：常にオレンジ背景 -->
+    <div class="players-container">
+      <div class="player-area player1-color" id="player1-area">
+        <h2><span id="player1-name-label">Player1</span> <span id="player1-role-label">(奴隷)</span> のターン</h2>
+        <p>手札: <span id="player1-hand"></span></p>
+        <div class="card-buttons" id="player1-card-buttons"></div>
+      </div>
+
+      <!-- プレイヤー2エリア：常に水色背景 -->
+      <div class="player-area player2-color" id="player2-area">
+        <h2><span id="player2-name-label">Player2</span> <span id="player2-role-label">(皇帝)</span> のターン</h2>
+        <p>手札: <span id="player2-hand"></span></p>
+        <div class="card-buttons" id="player2-card-buttons"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- サイドバー -->
+  <div class="sidebar">
+    <div class="scoreboard">
+      <h2>勝利数</h2>
+      <div>
+        <!-- Player1スコアにも .player1-color -->
+        <div class="player1-color" style="padding: 5px; border-radius: 4px; margin-bottom: 8px;">
+          <strong id="score-p1-emperor">Player1(皇帝勝利): 0</strong><br>
+          <strong id="score-p1-slave">Player1(奴隷勝利): 0</strong>
+        </div>
+        <!-- Player2スコアにも .player2-color -->
+        <div class="player2-color" style="padding: 5px; border-radius: 4px;">
+          <strong id="score-p2-emperor">Player2(皇帝勝利): 0</strong><br>
+          <strong id="score-p2-slave">Player2(奴隷勝利): 0</strong>
+        </div>
+      </div>
+    </div>
+
+    <h2>結果ログ</h2>
+    <div class="log" id="log"></div>
+
+    <div class="history-container">
+      <h2>ゲーム履歴</h2>
+      <div id="history"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /*****************************************************
+   * Eカードロジック
+   *****************************************************/
+  const EMPEROR = "皇帝";
+  const SLAVE   = "奴隷";
+  const CITIZEN = "市民";
+
+// 挑発メッセージ配列
+const taunts = [
+  "一生迷ってろ そして失い続けるんだ……貴重な機会 (チャンス)を……!",
+  "勝ちもせず生きようとすることが そもそも論外なのだ",
+  "死ぬっ……! その間際いやでも気が付くだろう……今まで生きてきたすべてが 丸ごと『本物』だったことを……!",
+  "命はもっと……粗末に扱うべきなのだっ……! 命は……生命は……丁寧に扱いすぎると 澱 (よど)み腐 (くさ)る……!",
+  "誠意とは……それほど厳しいのだっ……!",
+  "お前の人生、もう後戻りはできないぞ……!",
+  "愚かな決断が招いた結果だ……!",
+  "落とされるか？ 落とすか？ 選べよ……!",
+  "その手で勝てるとでも思ったか……甘いなっ……!",
+  "勝つためには、今まで以上の覚悟がいる……!",
+  "自分の弱さを見つめるんだ、今だ……!",
+  "先を見なくていい……目の前の一歩が全てだ……!",
+  "望みに進むのが 気持ちのいい人生ってもんだろっ……!",
+  "刮目 (かつもく)せよっ……これが勝利の瞬間だ……!",
+  "胸を張れ……負けた時こそ、本当の勝負だっ……!"
+];
+
+// 引き分け時のメッセージ
+const drawMessages = [
+  "まだまだ勝負はここからだ！",
+  "ここでは終われねえだろ？ 続けるぞ！",
+  "熱い勝負だな、もう一度カードを切れ!",
+  "決着は次のカードでつけようじゃないか"
+];
+
+  // プレイヤー名
+  let p1Name = "プレイヤー1";
+  let p2Name = "プレイヤー2";
+
+  // プレイヤー1が奴隷かどうか
+  let player1IsSlave = true;
+
+  // ラウンド
+  let round = 1;
+
+  // デッキ
+  let deckSlave   = [];
+  let deckEmperor = [];
+  let chosenCardSlave   = null;
+  let chosenCardEmperor = null;
+
+  // スコア
+  let p1EmperorWins = 0;
+  let p1SlaveWins   = 0;
+  let p2EmperorWins = 0;
+  let p2SlaveWins   = 0;
+
+  // 履歴
+  const history = [];
+
+  let lastState = null; // Undo用
+
+  // DOM
+  const gameContainer      = document.getElementById("game-container");
+  const playerNameForm     = document.getElementById("player-name-form");
+  const player1Input       = document.getElementById("player1-input");
+  const player2Input       = document.getElementById("player2-input");
+  const startGameBtn       = document.getElementById("start-game-btn");
+
+  const roundNumberEl      = document.getElementById("round-number");
+  const logEl              = document.getElementById("log");
+  const historyEl          = document.getElementById("history");
+  const resultOverlay      = document.getElementById("result-overlay");
+
+  // Player1エリア
+  const player1Area        = document.getElementById("player1-area");
+  const player1NameLabel   = document.getElementById("player1-name-label");
+  const player1RoleLabel   = document.getElementById("player1-role-label");
+  const player1HandEl      = document.getElementById("player1-hand");
+  const player1ButtonsEl   = document.getElementById("player1-card-buttons");
+
+  // Player2エリア
+  const player2Area        = document.getElementById("player2-area");
+  const player2NameLabel   = document.getElementById("player2-name-label");
+  const player2RoleLabel   = document.getElementById("player2-role-label");
+  const player2HandEl      = document.getElementById("player2-hand");
+  const player2ButtonsEl   = document.getElementById("player2-card-buttons");
+
+  // スコア
+  const scoreP1Emperor = document.getElementById("score-p1-emperor");
+  const scoreP1Slave   = document.getElementById("score-p1-slave");
+  const scoreP2Emperor = document.getElementById("score-p2-emperor");
+  const scoreP2Slave   = document.getElementById("score-p2-slave");
+
+  // テーブルカード
+  const slaveCardEl   = document.getElementById("slave-table-card");
+  const emperorCardEl = document.getElementById("emperor-table-card");
+
+  /***********************************************
+   * プレイヤー名フォーム → ゲーム開始
+   ***********************************************/
+  startGameBtn.addEventListener("click", () => {
+    const name1 = player1Input.value.trim();
+    const name2 = player2Input.value.trim();
+    if (name1) p1Name = name1;
+    if (name2) p2Name = name2;
+
+    playerNameForm.style.display = "none";
+    gameContainer.style.filter    = "none";
+
+    initGame();
+  });
+
+  /***********************************************
+   * ゲーム初期化
+   ***********************************************/
+  function initGame() {
+    round = 1;
+    deckSlave   = [SLAVE, CITIZEN, CITIZEN, CITIZEN, CITIZEN];
+    deckEmperor = [EMPEROR, CITIZEN, CITIZEN, CITIZEN, CITIZEN];
+    chosenCardSlave   = null;
+    chosenCardEmperor = null;
+    logEl.textContent  = "";
+    resultOverlay.classList.remove("show");
+    roundNumberEl.textContent = round;
+    lastState = null;
+
+    // スコアボードのプレイヤー名
+    // (すでにscoreP1Emperor等には初期で "Player1(皇帝勝利): 0" とあるが、名称部分を更新)
+    scoreP1Emperor.textContent = `${p1Name}(皇帝勝利): ${p1EmperorWins}`;
+    scoreP1Slave.textContent   = `${p1Name}(奴隷勝利): ${p1SlaveWins}`;
+    scoreP2Emperor.textContent = `${p2Name}(皇帝勝利): ${p2EmperorWins}`;
+    scoreP2Slave.textContent   = `${p2Name}(奴隷勝利): ${p2SlaveWins}`;
+
+    // 表示名セット
+    player1NameLabel.textContent = p1Name;
+    player2NameLabel.textContent = p2Name;
+
+    // プレイヤー1が奴隷か？
+    updateRoleLabels();
+
+    resetCardsOnTable();
+    updateHands();
+    startRound();
+  }
+
+  // プレイヤー1が奴隷かどうかで役職ラベル切り替え
+  function updateRoleLabels() {
+    if (player1IsSlave) {
+      player1RoleLabel.textContent = "(奴隷)";
+      player2RoleLabel.textContent = "(皇帝)";
+    } else {
+      player1RoleLabel.textContent = "(皇帝)";
+      player2RoleLabel.textContent = "(奴隷)";
+    }
+  }
+
+  // ラウンド開始
+  // 奇数ラウンド -> 奴隷先行
+  // 偶数ラウンド -> 皇帝先行
+  function startRound() {
+    if (round % 2 === 1) {
+      showSlaveArea();
+    } else {
+      showEmperorArea();
+    }
+  }
+
+  function showSlaveArea() {
+    const slaveArea = player1IsSlave ? player1Area : player2Area;
+    const empArea   = player1IsSlave ? player2Area : player1Area;
+    slaveArea.style.display  = "block";
+    empArea.style.display    = "none";
+
+    slaveArea.classList.add("active-turn");
+    empArea.classList.remove("active-turn");
+  }
+  function showEmperorArea() {
+    const slaveArea = player1IsSlave ? player1Area : player2Area;
+    const empArea   = player1IsSlave ? player2Area : player1Area;
+    empArea.style.display    = "block";
+    slaveArea.style.display  = "none";
+
+    empArea.classList.add("active-turn");
+    slaveArea.classList.remove("active-turn");
+  }
+
+  function resetCardsOnTable() {
+    slaveCardEl.textContent   = "";
+    emperorCardEl.textContent = "";
+    slaveCardEl.classList.remove("open","draw-highlight");
+    emperorCardEl.classList.remove("open","draw-highlight");
+    slaveCardEl.onclick   = null;
+    emperorCardEl.onclick = null;
+  }
+
+  function updateHands() {
+    // player1IsSlave -> deckSlave -> player1, deckEmperor -> player2
+    // else -> deckEmperor -> player1, deckSlave -> player2
+    if (player1IsSlave) {
+      // p1=奴隷
+      player1HandEl.textContent = deckSlave.join(", ");
+      player2HandEl.textContent = deckEmperor.join(", ");
+      updateButtons(player1ButtonsEl, deckSlave, onSlaveCardSelect);
+      updateButtons(player2ButtonsEl, deckEmperor, onEmperorCardSelect);
+    } else {
+      // p1=皇帝
+      player1HandEl.textContent = deckEmperor.join(", ");
+      player2HandEl.textContent = deckSlave.join(", ");
+      updateButtons(player1ButtonsEl, deckEmperor, onEmperorCardSelect);
+      updateButtons(player2ButtonsEl, deckSlave, onSlaveCardSelect);
+    }
+  }
+
+  function updateButtons(container, deck, callback) {
+    container.innerHTML = "";
+    deck.forEach((card, i) => {
+      const btn = document.createElement("button");
+      btn.textContent = card;
+      btn.classList.add("card-button");
+      btn.addEventListener("click", () => {
+        storeLastState();
+        callback(i);
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  // 奴隷のカード選択
+  function onSlaveCardSelect(index) {
+    if (player1IsSlave) {
+      chosenCardSlave = deckSlave.splice(index,1)[0];
+      log(`${p1Name}(奴隷) がカードを選びました。`);
+    } else {
+      chosenCardSlave = deckSlave.splice(index,1)[0];
+      log(`${p2Name}(奴隷) がカードを選びました。`);
+    }
+    // 「ざわ・・・」を表示
+    slaveCardEl.textContent = "ざわ・・・";
+    slaveCardEl.onclick = () => {
+      if (slaveCardEl.textContent === "ざわ・・・") {
+        restoreLastState();
+      }
+    };
+
+    showEmperorArea();
+    if (chosenCardEmperor) {
+      afterBothSelected();
+    }
+    updateHands();
+  }
+
+  // 皇帝のカード選択
+  function onEmperorCardSelect(index) {
+    if (player1IsSlave) {
+      // emperor = p2
+      chosenCardEmperor = deckEmperor.splice(index,1)[0];
+      log(`${p2Name}(皇帝) がカードを選びました。`);
+    } else {
+      chosenCardEmperor = deckEmperor.splice(index,1)[0];
+      log(`${p1Name}(皇帝) がカードを選びました。`);
+    }
+    emperorCardEl.textContent = "ざわ・・・";
+    emperorCardEl.onclick = () => {
+      if (emperorCardEl.textContent === "ざわ・・・") {
+        restoreLastState();
+      }
+    };
+
+    showSlaveArea();
+    if (chosenCardSlave) {
+      afterBothSelected();
+    }
+    updateHands();
+  }
+
+  function afterBothSelected() {
+    slaveCardEl.onclick   = null;
+    emperorCardEl.onclick = null;
+
+    player1Area.style.display = "none";
+    player2Area.style.display = "none";
+    player1Area.classList.remove("active-turn");
+    player2Area.classList.remove("active-turn");
+
+    log("\n両者のカードが出揃いました...オープンします...");
+
+    setTimeout(() => {
+      openCards();
+      resolveRound();
+    }, 600);
+  }
+
+  function openCards() {
+    slaveCardEl.textContent   = chosenCardSlave;
+    emperorCardEl.textContent = chosenCardEmperor;
+    slaveCardEl.classList.add("open");
+    emperorCardEl.classList.add("open");
+  }
+
+  // 勝敗判定
+  function resolveRound() {
+    log(`\n【ラウンド${round}】`);
+
+    let emperorName = player1IsSlave ? p2Name : p1Name;
+    let slaveName   = player1IsSlave ? p1Name : p2Name;
+
+    log(`${emperorName}(皇帝): ${chosenCardEmperor} vs ${slaveName}(奴隷): ${chosenCardSlave}`);
+
+    const winner = judge(chosenCardEmperor, chosenCardSlave);
+    if (winner === "emperor") {
+      log(`${emperorName}(皇帝側)の勝利！ ゲーム終了`);
+      incrementEmperorWin(emperorName);
+      endGame(`${emperorName}（皇帝）`);
+    } else if (winner === "slave") {
+      log(`${slaveName}(奴隷側)の勝利！ ゲーム終了`);
+      incrementSlaveWin(slaveName);
+      endGame(`${slaveName}（奴隷）`);
+    } else {
+      log("引き分けです！ まだ決着はつかない！");
+      doDrawEffect();
+      setTimeout(() => {
+        nextRound();
+      }, 1800);
+    }
+  }
+
+  function judge(empCard, slvCard) {
+    if (empCard === slvCard) return "draw";
+    if (empCard === EMPEROR && slvCard === CITIZEN) return "emperor";
+    if (empCard === CITIZEN && slvCard === SLAVE)   return "emperor";
+    if (empCard === SLAVE   && slvCard === EMPEROR) return "emperor";
+
+    if (slvCard === EMPEROR && empCard === CITIZEN) return "slave";
+    if (slvCard === CITIZEN && empCard === SLAVE)   return "slave";
+    if (slvCard === SLAVE   && empCard === EMPEROR) return "slave";
+    return "draw";
+  }
+
+  function doDrawEffect() {
+    slaveCardEl.classList.add("draw-highlight");
+    emperorCardEl.classList.add("draw-highlight");
+    const msg = drawMessages[Math.floor(Math.random() * drawMessages.length)];
+    log(msg);
+  }
+
+  function nextRound() {
+    round++;
+    roundNumberEl.textContent = round;
+    chosenCardSlave   = null;
+    chosenCardEmperor = null;
+    resetCardsOnTable();
+    updateHands();
+    startRound();
+    lastState = null;
+  }
+
+  /******************************************
+   * ゲーム終了
+   ******************************************/
+  function endGame(winnerDisplay) {
+    log("\n【最終結果】\n最終的な勝者は " + winnerDisplay + " です！");
+    showResultOverlay("勝者は " + winnerDisplay + " です！");
+
+    const randomTaunt = taunts[Math.floor(Math.random() * taunts.length)];
+    log("\n" + randomTaunt);
+
+    history.push({
+      round,
+      winner: winnerDisplay,
+      emperorCard: chosenCardEmperor,
+      slaveCard: chosenCardSlave
+    });
+    updateHistory();
+
+    // ボタン無効化
+    player1ButtonsEl.querySelectorAll("button").forEach(btn => btn.disabled = true);
+    player2ButtonsEl.querySelectorAll("button").forEach(btn => btn.disabled = true);
+
+    // 「もう一度遊ぶ」ボタン
+    const nextGameBtn = document.createElement("button");
+    nextGameBtn.textContent = "もう一度遊ぶ";
+    nextGameBtn.classList.add("next-round-button");
+    nextGameBtn.addEventListener("click", () => {
+      player1IsSlave = !player1IsSlave;
+      newGame();
+      nextGameBtn.remove();
+    });
+    logEl.appendChild(nextGameBtn);
+    logEl.scrollTop = logEl.scrollHeight;
+
+    lastState = null;
+  }
+
+  function showResultOverlay(msg) {
+    resultOverlay.textContent = msg;
+    resultOverlay.classList.add("show");
+  }
+
+  function newGame() {
+    round = 1;
+    deckSlave   = [SLAVE, CITIZEN, CITIZEN, CITIZEN, CITIZEN];
+    deckEmperor = [EMPEROR, CITIZEN, CITIZEN, CITIZEN, CITIZEN];
+    chosenCardSlave   = null;
+    chosenCardEmperor = null;
+    resetCardsOnTable();
+
+    log("\n===== 新しいゲームを開始します =====");
+    updateRoleLabels();
+    updateHands();
+    startRound();
+
+    resultOverlay.classList.remove("show");
+    lastState = null;
+  }
+
+  /******************************************
+   * スコア管理
+   ******************************************/
+  function incrementEmperorWin(name) {
+    if (name === p1Name) p1EmperorWins++;
+    else                 p2EmperorWins++;
+    updateScore();
+  }
+  function incrementSlaveWin(name) {
+    if (name === p1Name) p1SlaveWins++;
+    else                 p2SlaveWins++;
+    updateScore();
+  }
+  function updateScore() {
+    scoreP1Emperor.textContent = `${p1Name}(皇帝勝利): ${p1EmperorWins}`;
+    scoreP1Slave.textContent   = `${p1Name}(奴隷勝利): ${p1SlaveWins}`;
+    scoreP2Emperor.textContent = `${p2Name}(皇帝勝利): ${p2EmperorWins}`;
+    scoreP2Slave.textContent   = `${p2Name}(奴隷勝利): ${p2SlaveWins}`;
+  }
+
+  /******************************************
+   * 履歴更新
+   ******************************************/
+  function updateHistory() {
+    historyEl.innerHTML = "";
+    history.forEach((g, i) => {
+      const div = document.createElement("div");
+      div.classList.add("history-item");
+      div.textContent = `Game${i+1} - R${g.round} / 勝者: ${g.winner} (皇帝:${g.emperorCard} vs 奴隷:${g.slaveCard})`;
+      historyEl.appendChild(div);
+    });
+  }
+
+  /******************************************
+   * ログ出力
+   ******************************************/
+  function log(msg) {
+    logEl.textContent += msg + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  /******************************************
+   * Undo (戻る)
+   ******************************************/
+  function storeLastState() {
+    lastState = {
+      round,
+      deckSlave:   [...deckSlave],
+      deckEmperor: [...deckEmperor],
+      chosenCardSlave,
+      chosenCardEmperor,
+      logText: logEl.textContent
+    };
+  }
+  function restoreLastState() {
+    if (!lastState) return;
+    round             = lastState.round;
+    deckSlave         = [...lastState.deckSlave];
+    deckEmperor       = [...lastState.deckEmperor];
+    chosenCardSlave   = lastState.chosenCardSlave;
+    chosenCardEmperor = lastState.chosenCardEmperor;
+    logEl.textContent = lastState.logText;
+    logEl.scrollTop   = logEl.scrollHeight;
+    roundNumberEl.textContent = round;
+
+    resetCardsOnTable();
+    updateHands();
+
+    // 奇数ラウンド -> 奴隷先行, 偶数ラウンド -> 皇帝先行
+    if (round % 2 === 1) {
+      showSlaveArea();
+    } else {
+      showEmperorArea();
+    }
+
+    // ??? -> 「ざわ・・・」 再現
+    if (chosenCardSlave && !chosenCardEmperor) {
+      slaveCardEl.textContent = "ざわ・・・";
+      slaveCardEl.onclick = null;
+    } else if (chosenCardEmperor && !chosenCardSlave) {
+      emperorCardEl.textContent = "ざわ・・・";
+      emperorCardEl.onclick = null;
+    }
+
+    lastState = null;
+    log("（カード選択を取り消しました）");
+  }
+
+})();
+</script>
+</body>
+</html>
