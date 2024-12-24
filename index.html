@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
+<!-- 画面幅に合わせて拡大・縮小 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Eカード</title>
 <style>
@@ -24,10 +25,17 @@
 
   .container {
     display: flex;
-    flex-direction: row;
+    flex-direction: row; /* PCなど広い画面では横並び */
     min-height: 100vh;
     background: rgba(255, 255, 255, 0.85);
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  /* 768px 以下のスマホサイズでは縦並びにする */
+  @media (max-width: 768px) {
+    .container {
+      flex-direction: column; /* 縦並び */
+    }
   }
 
   /*********************
@@ -93,6 +101,17 @@
     flex-direction: column;
     gap: 20px;
   }
+
+  /* スマホで縦配置のときはサイドバーを幅100%にして下に配置 */
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 100%;
+      border-left: none;
+      border-top: 2px solid #333; /* 代わりに上に線を付ける */
+      border-radius: 15px 15px 0 0; /* 上だけ丸み */
+    }
+  }
+
   .sidebar h2 {
     font-size: 1.4em;
     margin: 0;
@@ -291,6 +310,9 @@
     font-size: 1em;
     border: 1px solid #ccc;
     border-radius: 5px;
+    width: 80%;
+    max-width: 300px;
+    box-sizing: border-box;
   }
   #start-game-btn {
     font-size: 1em;
@@ -387,38 +409,38 @@
 <script>
 (function(){
   /*****************************************************
-   * Eカードロジック
+   * Eカードロジック (JavaScriptは変更なし)
    *****************************************************/
   const EMPEROR = "皇帝";
   const SLAVE   = "奴隷";
   const CITIZEN = "市民";
 
-// 挑発メッセージ配列
-const taunts = [
-  "一生迷ってろ そして失い続けるんだ……貴重な機会 (チャンス)を……!",
-  "勝ちもせず生きようとすることが そもそも論外なのだ",
-  "死ぬっ……! その間際いやでも気が付くだろう……今まで生きてきたすべてが 丸ごと『本物』だったことを……!",
-  "命はもっと……粗末に扱うべきなのだっ……! 命は……生命は……丁寧に扱いすぎると 澱 (よど)み腐 (くさ)る……!",
-  "誠意とは……それほど厳しいのだっ……!",
-  "お前の人生、もう後戻りはできないぞ……!",
-  "愚かな決断が招いた結果だ……!",
-  "落とされるか？ 落とすか？ 選べよ……!",
-  "その手で勝てるとでも思ったか……甘いなっ……!",
-  "勝つためには、今まで以上の覚悟がいる……!",
-  "自分の弱さを見つめるんだ、今だ……!",
-  "先を見なくていい……目の前の一歩が全てだ……!",
-  "望みに進むのが 気持ちのいい人生ってもんだろっ……!",
-  "刮目 (かつもく)せよっ……これが勝利の瞬間だ……!",
-  "胸を張れ……負けた時こそ、本当の勝負だっ……!"
-];
+  // 挑発メッセージ配列
+  const taunts = [
+    "一生迷ってろ そして失い続けるんだ……貴重な機会 (チャンス)を……!",
+    "勝ちもせず生きようとすることが そもそも論外なのだ",
+    "死ぬっ……! その間際いやでも気が付くだろう……今まで生きてきたすべてが 丸ごと『本物』だったことを……!",
+    "命はもっと……粗末に扱うべきなのだっ……! 命は……生命は……丁寧に扱いすぎると 澱 (よど)み腐 (くさ)る……!",
+    "誠意とは……それほど厳しいのだっ……!",
+    "お前の人生、もう後戻りはできないぞ……!",
+    "愚かな決断が招いた結果だ……!",
+    "落とされるか？ 落とすか？ 選べよ……!",
+    "その手で勝てるとでも思ったか……甘いなっ……!",
+    "勝つためには、今まで以上の覚悟がいる……!",
+    "自分の弱さを見つめるんだ、今だ……!",
+    "先を見なくていい……目の前の一歩が全てだ……!",
+    "望みに進むのが 気持ちのいい人生ってもんだろっ……!",
+    "刮目 (かつもく)せよっ……これが勝利の瞬間だ……!",
+    "胸を張れ……負けた時こそ、本当の勝負だっ……!"
+  ];
 
-// 引き分け時のメッセージ
-const drawMessages = [
-  "まだまだ勝負はここからだ！",
-  "ここでは終われねえだろ？ 続けるぞ！",
-  "熱い勝負だな、もう一度カードを切れ!",
-  "決着は次のカードでつけようじゃないか"
-];
+  // 引き分け時のメッセージ
+  const drawMessages = [
+    "まだまだ勝負はここからだ！",
+    "ここでは終われねえだろ？ 続けるぞ！",
+    "熱い勝負だな、もう一度カードを切れ!",
+    "決着は次のカードでつけようじゃないか"
+  ];
 
   // プレイヤー名
   let p1Name = "プレイヤー1";
@@ -513,7 +535,6 @@ const drawMessages = [
     lastState = null;
 
     // スコアボードのプレイヤー名
-    // (すでにscoreP1Emperor等には初期で "Player1(皇帝勝利): 0" とあるが、名称部分を更新)
     scoreP1Emperor.textContent = `${p1Name}(皇帝勝利): ${p1EmperorWins}`;
     scoreP1Slave.textContent   = `${p1Name}(奴隷勝利): ${p1SlaveWins}`;
     scoreP2Emperor.textContent = `${p2Name}(皇帝勝利): ${p2EmperorWins}`;
@@ -582,8 +603,6 @@ const drawMessages = [
   }
 
   function updateHands() {
-    // player1IsSlave -> deckSlave -> player1, deckEmperor -> player2
-    // else -> deckEmperor -> player1, deckSlave -> player2
     if (player1IsSlave) {
       // p1=奴隷
       player1HandEl.textContent = deckSlave.join(", ");
